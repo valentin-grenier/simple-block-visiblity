@@ -2,13 +2,18 @@
 
 Show or hide Gutenberg blocks based on custom breakpoints — no coding required.
 
+![WordPress Plugin Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![WordPress Compatibility](https://img.shields.io/badge/wordpress-5.8%2B-blue.svg)
+![PHP Version](https://img.shields.io/badge/php-7.4%2B-purple.svg)
+![License](https://img.shields.io/badge/license-GPLv2%2B-green.svg)
+
 ## Features
 
 - Hide any core Gutenberg block on **Mobile**, **Tablet**, **Laptop**, or **Desktop**
 - Define your own breakpoint pixel values in **Settings > Block Visibility**
 - Breakpoint labels update live in the editor to reflect your settings
 - Pure CSS approach — no JavaScript on the frontend, no layout shifts
-- Works with all `core/` Gutenberg blocks
+- Works with all core and custom Gutenberg blocks
 
 ## How It Works
 
@@ -76,4 +81,12 @@ bash bin/deploy-to-svn.sh
 
 ## License
 
-GPL v2 or later — see [LICENSE](LICENSE)
+This project is licensed under the GPLv2 or later - see the [LICENSE](LICENSE) file for details.
+
+## Credits
+
+Developed by [Valentin Grenier](https://github.com/valentin-grenier) - [Studio Val](https://studio-val.fr)
+
+## Support
+
+For issues, questions, or suggestions, please [open an issue](https://github.com/valentin-grenier/simple-block-visibility/issues) on GitHub.
