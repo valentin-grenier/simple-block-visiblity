@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+build/
+dist/
+
+# IDE & Editor files
+.claude/
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment & Config
+.env
+.env.local
+.env.*.local
+
+# Lock files
+*-lock.json
+*.lock
+
+# WordPress specific
+wp-config.php
+.htaccess
+*.log
+
+# Misc
+*.zip
+*.tar.gz
+.cache/

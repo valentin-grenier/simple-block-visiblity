@@ -1,0 +1,25 @@
+{
+	"name": "simple-block-visibility",
+	"version": "1.0.0",
+	"license": "GPL-2.0-or-later",
+	"scripts": {
+		"build": "wp-scripts build",
+		"dev": "wp-scripts start",
+		"lint:js": "wp-scripts lint-js",
+		"lint:css": "wp-scripts lint-style",
+		"format": "wp-scripts format",
+		"i18n": "wp i18n make-pot . languages/simple-block-visibility.pot --exclude=node_modules,vendor,build,tests"
+	},
+	"devDependencies": {
+		"@wordpress/scripts": "^27.9.0",
+		"sass-embedded": "^1.97.3"
+	},
+	"dependencies": {
+		"@wordpress/block-editor": "^12.15.0",
+		"@wordpress/components": "^25.13.0",
+		"@wordpress/compose": "^6.24.0",
+		"@wordpress/element": "^5.24.0",
+		"@wordpress/hooks": "^3.47.0",
+		"@wordpress/i18n": "^4.47.0"
+	}
+}
