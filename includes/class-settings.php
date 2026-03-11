@@ -144,6 +144,110 @@ class SIMPBLV_Settings {
 	}
 
 	/**
+	 * Compute ordered, non-overlapping breakpoint ranges.
+	 *
+	 * Merges device breakpoints (mobile, tablet, laptop) with FSE layout
+	 * sizes (contentSize, wideSize) from theme.json into a single sorted
+	 * chain. Layout breakpoints that are too close to a device breakpoint
+	 * (< 50px gap) are disabled to avoid confusing or ineffective ranges.
+	 *
+	 * @return array Associative array of breakpoint ranges keyed by identifier.
+	 */
+	public static function get_breakpoint_ranges() {
+		$settings    = self::get_settings();
+		$layout      = self::get_layout_sizes();
+		$min_range   = 50;
+
+		$mobile_max  = absint( $settings['mobile_breakpoint'] );
+		$tablet_max  = absint( $settings['tablet_breakpoint'] );
+		$laptop_max  = absint( $settings['laptop_breakpoint'] );
+		$content_max = absint( $layout['content_size'] );
+		$wide_max    = absint( $layout['wide_size'] );
+
+		$device_maxes = array( $mobile_max, $tablet_max, $laptop_max );
+
+		// Check if content width creates a meaningful range.
+		$content_enabled = $content_max > 0;
+		if ( $content_enabled ) {
+			foreach ( $device_maxes as $dm ) {
+				if ( abs( $content_max - $dm ) < $min_range ) {
+					$content_enabled = false;
+					break;
+				}
+			}
+		}
+
+		// Check if wide width creates a meaningful range.
+		$wide_enabled = $wide_max > 0;
+		if ( $wide_enabled ) {
+			foreach ( $device_maxes as $dm ) {
+				if ( abs( $wide_max - $dm ) < $min_range ) {
+					$wide_enabled = false;
+					break;
+				}
+			}
+			if ( $wide_enabled && $content_enabled && abs( $wide_max - $content_max ) < $min_range ) {
+				$wide_enabled = false;
+			}
+		}
+
+		// Build sorted list of active breakpoints.
+		$active = array(
+			array( 'key' => 'mobile', 'max' => $mobile_max ),
+			array( 'key' => 'tablet', 'max' => $tablet_max ),
+			array( 'key' => 'laptop', 'max' => $laptop_max ),
+		);
+
+		if ( $content_enabled ) {
+			$active[] = array( 'key' => 'content-width', 'max' => $content_max );
+		}
+		if ( $wide_enabled ) {
+			$active[] = array( 'key' => 'wide-width', 'max' => $wide_max );
+		}
+
+		usort( $active, function ( $a, $b ) {
+			return $a['max'] - $b['max'];
+		} );
+
+		// Compute ranges from sorted breakpoints.
+		$ranges   = array();
+		$prev_max = 0;
+		foreach ( $active as $i => $bp ) {
+			$ranges[ $bp['key'] ] = array(
+				'enabled' => true,
+				'min'     => ( 0 === $i ) ? 0 : $prev_max + 1,
+				'max'     => $bp['max'],
+			);
+			$prev_max = $bp['max'];
+		}
+
+		// Desktop is always the unbounded upper range.
+		$ranges['desktop'] = array(
+			'enabled' => true,
+			'min'     => $prev_max + 1,
+			'max'     => 0,
+		);
+
+		// Add disabled entries for skipped FSE breakpoints.
+		if ( ! $content_enabled ) {
+			$ranges['content-width'] = array(
+				'enabled' => false,
+				'min'     => 0,
+				'max'     => $content_max,
+			);
+		}
+		if ( ! $wide_enabled ) {
+			$ranges['wide-width'] = array(
+				'enabled' => false,
+				'min'     => 0,
+				'max'     => $wide_max,
+			);
+		}
+
+		return $ranges;
+	}
+
+	/**
 	 * Sanitize settings
 	 *
 	 * @param array $input Raw input data.
@@ -206,40 +310,63 @@ class SIMPBLV_Settings {
 	 * Render breakpoints section description
 	 */
 	public static function render_breakpoints_section() {
-		$settings     = self::get_settings();
+		$ranges       = self::get_breakpoint_ranges();
 		$layout_sizes = self::get_layout_sizes();
-		$mobile_max   = absint( $settings['mobile_breakpoint'] );
-		$tablet_max   = absint( $settings['tablet_breakpoint'] );
-		$laptop_max   = absint( $settings['laptop_breakpoint'] );
-		$tablet_min   = $mobile_max + 1;
-		$laptop_min   = $tablet_max + 1;
-		$desktop_min  = $laptop_max + 1;
+
+		$labels = array(
+			'mobile'        => __( 'Mobile', 'simple-block-visibility' ),
+			'tablet'        => __( 'Tablet', 'simple-block-visibility' ),
+			'content-width' => __( 'Content width', 'simple-block-visibility' ),
+			'laptop'        => __( 'Laptop', 'simple-block-visibility' ),
+			'wide-width'    => __( 'Wide width', 'simple-block-visibility' ),
+			'desktop'       => __( 'Desktop', 'simple-block-visibility' ),
+		);
+
 		echo '<p>' . esc_html__( 'Define the screen width breakpoints for each device type. These values determine when blocks with visibility settings will be hidden on the frontend.', 'simple-block-visibility' ) . '</p>';
 		echo '<ul class="sblv-breakpoints-list">';
-		// translators: %d: maximum screen width in pixels for mobile devices.
-		echo '<li>' . esc_html( sprintf( __( 'Mobile: ≤ %dpx', 'simple-block-visibility' ), $mobile_max ) ) . '</li>';
-		// translators: %1$d: minimum screen width in pixels, %2$d: maximum screen width in pixels for tablet devices.
-		echo '<li>' . esc_html( sprintf( __( 'Tablet: %1$dpx–%2$dpx', 'simple-block-visibility' ), $tablet_min, $tablet_max ) ) . '</li>';
-		// translators: %1$d: minimum screen width in pixels, %2$d: maximum screen width in pixels for laptop devices.
-		echo '<li>' . esc_html( sprintf( __( 'Laptop: %1$dpx–%2$dpx', 'simple-block-visibility' ), $laptop_min, $laptop_max ) ) . '</li>';
-		// translators: %d: minimum screen width in pixels for desktop devices.
-		echo '<li>' . esc_html( sprintf( __( 'Desktop: ≥ %dpx', 'simple-block-visibility' ), $desktop_min ) ) . '</li>';
+
+		foreach ( $ranges as $key => $range ) {
+			if ( ! $range['enabled'] ) {
+				continue;
+			}
+
+			$label = $labels[ $key ] ?? $key;
+
+			if ( 0 === $range['min'] ) {
+				/* translators: %1$s: breakpoint label, %2$d: max width in pixels. */
+				echo '<li>' . esc_html( sprintf( __( '%1$s: ≤ %2$dpx', 'simple-block-visibility' ), $label, $range['max'] ) ) . '</li>';
+			} elseif ( 0 === $range['max'] ) {
+				/* translators: %1$s: breakpoint label, %2$d: min width in pixels. */
+				echo '<li>' . esc_html( sprintf( __( '%1$s: ≥ %2$dpx', 'simple-block-visibility' ), $label, $range['min'] ) ) . '</li>';
+			} else {
+				/* translators: %1$s: breakpoint label, %2$d: min width, %3$d: max width in pixels. */
+				echo '<li>' . esc_html( sprintf( __( '%1$s: %2$dpx–%3$dpx', 'simple-block-visibility' ), $label, $range['min'], $range['max'] ) ) . '</li>';
+			}
+		}
+
 		echo '</ul>';
 
-		if ( $layout_sizes['content_size'] > 0 || $layout_sizes['wide_size'] > 0 ) {
-			echo '<p style="margin-top:1em;">' . esc_html__( 'FSE layout breakpoints (from theme.json):', 'simple-block-visibility' ) . '</p>';
-			echo '<ul class="sblv-breakpoints-list">';
-			if ( $layout_sizes['content_size'] > 0 ) {
-				// translators: %d: content width in pixels from theme.json.
-				echo '<li>' . esc_html( sprintf( __( 'Content width: ≤ %dpx', 'simple-block-visibility' ), $layout_sizes['content_size'] + 64 ) ) . '</li>';
-			}
-			if ( $layout_sizes['wide_size'] > 0 ) {
-				// translators: %d: wide width in pixels from theme.json.
-				echo '<li>' . esc_html( sprintf( __( 'Wide width: ≤ %dpx', 'simple-block-visibility' ), $layout_sizes['wide_size'] + 64 ) ) . '</li>';
-			}
-			echo '</ul>';
-		} else {
-			echo '<p style="margin-top:1em;"><em>' . esc_html__( 'No FSE layout sizes found in theme.json. Content width and wide width breakpoints are unavailable.', 'simple-block-visibility' ) . '</em></p>';
+		// Show notice for disabled FSE breakpoints.
+		$disabled_notices = array();
+		if ( isset( $ranges['content-width'] ) && ! $ranges['content-width']['enabled'] && $layout_sizes['content_size'] > 0 ) {
+			/* translators: %d: content width in pixels from theme.json. */
+			$disabled_notices[] = sprintf( __( 'Content width (%dpx)', 'simple-block-visibility' ), $layout_sizes['content_size'] );
+		}
+		if ( isset( $ranges['wide-width'] ) && ! $ranges['wide-width']['enabled'] && $layout_sizes['wide_size'] > 0 ) {
+			/* translators: %d: wide width in pixels from theme.json. */
+			$disabled_notices[] = sprintf( __( 'Wide width (%dpx)', 'simple-block-visibility' ), $layout_sizes['wide_size'] );
+		}
+
+		if ( ! empty( $disabled_notices ) ) {
+			echo '<p class="description"><em>';
+			printf(
+				/* translators: %s: comma-separated list of disabled breakpoint names with pixel values. */
+				esc_html__( '%s breakpoint(s) from theme.json disabled — too close to an existing device breakpoint.', 'simple-block-visibility' ),
+				esc_html( implode( ', ', $disabled_notices ) )
+			);
+			echo '</em></p>';
+		} elseif ( 0 === $layout_sizes['content_size'] && 0 === $layout_sizes['wide_size'] ) {
+			echo '<p class="description"><em>' . esc_html__( 'No FSE layout sizes found in theme.json. Content width and wide width breakpoints are unavailable.', 'simple-block-visibility' ) . '</em></p>';
 		}
 	}
 
@@ -295,40 +422,37 @@ class SIMPBLV_Settings {
 	 * @return string CSS string with media queries.
 	 */
 	public static function get_css() {
-		$settings     = self::get_settings();
-		$layout_sizes = self::get_layout_sizes();
-		$mobile_max   = absint( $settings['mobile_breakpoint'] );
-		$tablet_max   = absint( $settings['tablet_breakpoint'] );
-		$laptop_max   = absint( $settings['laptop_breakpoint'] );
-		$tablet_min   = $mobile_max + 1;
-		$laptop_min   = $tablet_max + 1;
-		$desktop_min  = $laptop_max + 1;
+		$ranges = self::get_breakpoint_ranges();
+		$css    = '';
 
-		$css = sprintf(
-			'@media(max-width:%1$dpx){.sblv-hide-mobile{display:none!important}}' .
-			'@media(min-width:%2$dpx) and (max-width:%3$dpx){.sblv-hide-tablet{display:none!important}}' .
-			'@media(min-width:%4$dpx) and (max-width:%5$dpx){.sblv-hide-laptop{display:none!important}}' .
-			'@media(min-width:%6$dpx){.sblv-hide-desktop{display:none!important}}',
-			$mobile_max,
-			$tablet_min,
-			$tablet_max,
-			$laptop_min,
-			$laptop_max,
-			$desktop_min
+		$class_map = array(
+			'mobile'        => 'sblv-hide-mobile',
+			'tablet'        => 'sblv-hide-tablet',
+			'content-width' => 'sblv-hide-content-width',
+			'laptop'        => 'sblv-hide-laptop',
+			'wide-width'    => 'sblv-hide-wide-width',
+			'desktop'       => 'sblv-hide-desktop',
 		);
 
-		if ( $layout_sizes['content_size'] > 0 ) {
-			$css .= sprintf(
-				'@media(max-width:%dpx){.sblv-hide-content-width{display:none!important}}',
-				$layout_sizes['content_size']
-			);
-		}
+		foreach ( $ranges as $key => $range ) {
+			if ( ! $range['enabled'] || ! isset( $class_map[ $key ] ) ) {
+				continue;
+			}
 
-		if ( $layout_sizes['wide_size'] > 0 ) {
-			$css .= sprintf(
-				'@media(max-width:%dpx){.sblv-hide-wide-width{display:none!important}}',
-				$layout_sizes['wide_size']
-			);
+			$class = $class_map[ $key ];
+
+			if ( 0 === $range['min'] ) {
+				$css .= sprintf( '@media(max-width:%dpx){.%s{display:none!important}}', $range['max'], $class );
+			} elseif ( 0 === $range['max'] ) {
+				$css .= sprintf( '@media(min-width:%dpx){.%s{display:none!important}}', $range['min'], $class );
+			} else {
+				$css .= sprintf(
+					'@media(min-width:%dpx) and (max-width:%dpx){.%s{display:none!important}}',
+					$range['min'],
+					$range['max'],
+					$class
+				);
+			}
 		}
 
 		return $css;

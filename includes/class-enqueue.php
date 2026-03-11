@@ -54,19 +54,34 @@ class SIMPBLV_Enqueue {
 			SIMPBLV_VERSION
 		);
 
-		// Pass breakpoint values and layout sizes to the editor JS
-		$settings     = SIMPBLV_Settings::get_settings();
-		$layout_sizes = SIMPBLV_Settings::get_layout_sizes();
-		wp_localize_script(
+		// Pass computed breakpoint ranges to the editor JS.
+		$ranges  = SIMPBLV_Settings::get_breakpoint_ranges();
+		$key_map = array(
+			'mobile'        => 'mobile',
+			'tablet'        => 'tablet',
+			'content-width' => 'contentWidth',
+			'laptop'        => 'laptop',
+			'wide-width'    => 'wideWidth',
+			'desktop'       => 'desktop',
+		);
+
+		$js_breakpoints = array();
+		$order          = array();
+		foreach ( $ranges as $key => $range ) {
+			$js_key                       = $key_map[ $key ] ?? $key;
+			$js_breakpoints[ $js_key ]    = $range;
+			if ( $range['enabled'] ) {
+				$order[] = $js_key;
+			}
+		}
+
+		wp_add_inline_script(
 			'simple-block-visibility-editor',
-			'simpblvSettings',
-			array(
-				'mobileBreakpoint' => absint( $settings['mobile_breakpoint'] ),
-				'tabletBreakpoint' => absint( $settings['tablet_breakpoint'] ),
-				'laptopBreakpoint' => absint( $settings['laptop_breakpoint'] ),
-				'contentSize'      => absint( $layout_sizes['content_size'] ),
-				'wideSize'         => absint( $layout_sizes['wide_size'] ),
-			)
+			'var simpblvSettings = ' . wp_json_encode( array(
+				'breakpoints' => $js_breakpoints,
+				'order'       => $order,
+			) ) . ';',
+			'before'
 		);
 
 		wp_set_script_translations(

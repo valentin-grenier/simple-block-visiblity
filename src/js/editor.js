@@ -10,60 +10,68 @@ import '../scss/editor.scss';
 if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 	window.simpleBlockVisibilityFiltersAdded = true;
 
-	const settings = window.simpblvSettings || { mobileBreakpoint: 550, tabletBreakpoint: 768, laptopBreakpoint: 1440, contentSize: 0, wideSize: 0 };
+	const rawSettings = window.simpblvSettings || {};
+	const bp    = rawSettings.breakpoints || {};
+	const order = rawSettings.order || [ 'mobile', 'tablet', 'laptop', 'desktop' ];
 
 	/**
-	 * Add visibility attributes
+	 * Map breakpoint key to block attribute name and label
+	 */
+	const bpConfig = {
+		mobile:       { attr: 'hideOnMobile',       label: __( 'Hide on Mobile', 'simple-block-visibility' ) },
+		tablet:       { attr: 'hideOnTablet',       label: __( 'Hide on Tablet', 'simple-block-visibility' ) },
+		contentWidth: { attr: 'hideOnContentWidth', label: __( 'Hide on Content Width', 'simple-block-visibility' ) },
+		laptop:       { attr: 'hideOnLaptop',       label: __( 'Hide on Laptop', 'simple-block-visibility' ) },
+		wideWidth:    { attr: 'hideOnWideWidth',    label: __( 'Hide on Wide Width', 'simple-block-visibility' ) },
+		desktop:      { attr: 'hideOnDesktop',      label: __( 'Hide on Desktop', 'simple-block-visibility' ) },
+	};
+
+	/**
+	 * Format a breakpoint range for display
+	 */
+	function formatRange( range ) {
+		if ( range.min === 0 ) return `(\u2264 ${ range.max }px)`;
+		if ( ! range.max )     return `(\u2265 ${ range.min }px)`;
+		return `(${ range.min }px \u2013 ${ range.max }px)`;
+	}
+
+	/**
+	 * Add visibility attributes to all blocks
 	 */
 	function addVisibilityAttributes( blockSettings ) {
 		return {
 			...blockSettings,
 			attributes: {
 				...blockSettings.attributes,
-				hideOnMobile: {
-					type: 'boolean',
-					default: false,
-				},
-				hideOnTablet: {
-					type: 'boolean',
-					default: false,
-				},
-				hideOnLaptop: {
-					type: 'boolean',
-					default: false,
-				},
-				hideOnDesktop: {
-					type: 'boolean',
-					default: false,
-				},
-				hideOnContentWidth: {
-					type: 'boolean',
-					default: false,
-				},
-				hideOnWideWidth: {
-					type: 'boolean',
-					default: false,
-				},
+				hideOnMobile:       { type: 'boolean', default: false },
+				hideOnTablet:       { type: 'boolean', default: false },
+				hideOnLaptop:       { type: 'boolean', default: false },
+				hideOnDesktop:      { type: 'boolean', default: false },
+				hideOnContentWidth: { type: 'boolean', default: false },
+				hideOnWideWidth:    { type: 'boolean', default: false },
 			},
 		};
 	}
 
 	/**
-	 * Add visibility controls to
+	 * Add visibility toggle controls to the block inspector
 	 */
 	const withVisibilityControls = createHigherOrderComponent( ( BlockEdit ) => {
 		return ( props ) => {
 			const { attributes, setAttributes } = props;
-			const { hideOnMobile, hideOnTablet, hideOnLaptop, hideOnDesktop, hideOnContentWidth, hideOnWideWidth } = attributes;
 
-			const mobileMax   = parseInt(settings.mobileBreakpoint, 10) || 550;
-			const tabletMin   = mobileMax + 1;
-			const tabletMax   = parseInt(settings.tabletBreakpoint, 10) || 768;
-			const laptopMin   = tabletMax + 1;
-			const laptopMax   = parseInt(settings.laptopBreakpoint, 10) || 1440;
-			const desktopMin  = laptopMax + 1;
-			const contentSize = (parseInt(settings.contentSize, 10) + 64) || 0;
-			const wideSize    = (parseInt(settings.wideSize, 10) + 64) || 0;
+			const toggles = order.map( ( key ) => {
+				const config = bpConfig[ key ];
+				const range  = bp[ key ];
+				if ( ! config || ! range || ! range.enabled ) return null;
+
+				return createElement( ToggleControl, {
+					key,
+					label: config.label + ' ' + formatRange( range ),
+					checked: !! attributes[ config.attr ],
+					onChange: ( value ) => setAttributes( { [ config.attr ]: value } ),
+				} );
+			} );
 
 			return createElement(
 				Fragment,
@@ -78,36 +86,7 @@ if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 							title: __( 'Visibility', 'simple-block-visibility' ),
 							initialOpen: false,
 						},
-						createElement( ToggleControl, {
-							label: __( 'Hide on Mobile', 'simple-block-visibility' ) + ` (≤ ${ mobileMax }px)`,
-							checked: hideOnMobile,
-							onChange: ( value ) => setAttributes( { hideOnMobile: value } ),
-						} ),
-						createElement( ToggleControl, {
-							label: __( 'Hide on Tablet', 'simple-block-visibility' ) + ` (${ tabletMin }px – ${ tabletMax }px)`,
-							checked: hideOnTablet,
-							onChange: ( value ) => setAttributes( { hideOnTablet: value } ),
-						} ),
-						createElement( ToggleControl, {
-							label: __( 'Hide on Laptop', 'simple-block-visibility' ) + ` (${ laptopMin }px – ${ laptopMax }px)`,
-							checked: hideOnLaptop,
-							onChange: ( value ) => setAttributes( { hideOnLaptop: value } ),
-						} ),
-						createElement( ToggleControl, {
-							label: __( 'Hide on Desktop', 'simple-block-visibility' ) + ` (≥ ${ desktopMin }px)`,
-							checked: hideOnDesktop,
-							onChange: ( value ) => setAttributes( { hideOnDesktop: value } ),
-						} ),
-						contentSize > 0 && createElement( ToggleControl, {
-							label: __( 'Hide below content width', 'simple-block-visibility' ) + ` (≤ ${ contentSize }px)`,
-							checked: hideOnContentWidth,
-							onChange: ( value ) => setAttributes( { hideOnContentWidth: value } ),
-						} ),
-						wideSize > 0 && createElement( ToggleControl, {
-							label: __( 'Hide below wide width', 'simple-block-visibility' ) + ` (≤ ${ wideSize }px)`,
-							checked: hideOnWideWidth,
-							onChange: ( value ) => setAttributes( { hideOnWideWidth: value } ),
-						} ),
+						...toggles,
 					)
 				)
 			);
