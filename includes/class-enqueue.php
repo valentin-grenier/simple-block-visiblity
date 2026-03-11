@@ -54,8 +54,9 @@ class SIMPBLV_Enqueue {
 			SIMPBLV_VERSION
 		);
 
-		// Pass breakpoint values to the editor JS
-		$settings = SIMPBLV_Settings::get_settings();
+		// Pass breakpoint values and layout sizes to the editor JS
+		$settings     = SIMPBLV_Settings::get_settings();
+		$layout_sizes = SIMPBLV_Settings::get_layout_sizes();
 		wp_localize_script(
 			'simple-block-visibility-editor',
 			'simpblvSettings',
@@ -63,6 +64,8 @@ class SIMPBLV_Enqueue {
 				'mobileBreakpoint' => absint( $settings['mobile_breakpoint'] ),
 				'tabletBreakpoint' => absint( $settings['tablet_breakpoint'] ),
 				'laptopBreakpoint' => absint( $settings['laptop_breakpoint'] ),
+				'contentSize'      => absint( $layout_sizes['content_size'] ),
+				'wideSize'         => absint( $layout_sizes['wide_size'] ),
 			)
 		);
 

@@ -100,6 +100,50 @@ class SIMPBLV_Settings {
 	}
 
 	/**
+	 * Get layout sizes from theme.json (contentSize and wideSize)
+	 *
+	 * @return array Array with 'content_size' and 'wide_size' in pixels (0 if unavailable).
+	 */
+	public static function get_layout_sizes() {
+		$layout = wp_get_global_settings( array( 'layout' ) );
+
+		return array(
+			'content_size' => self::parse_px_value( $layout['contentSize'] ?? '' ),
+			'wide_size'    => self::parse_px_value( $layout['wideSize'] ?? '' ),
+		);
+	}
+
+	/**
+	 * Parse a CSS length value to an integer pixel value.
+	 * Supports px, rem, and em units.
+	 *
+	 * @param string $value CSS length value (e.g. '620px', '40rem').
+	 * @return int Pixel value, or 0 if not parseable.
+	 */
+	private static function parse_px_value( $value ) {
+		$value = trim( $value );
+
+		if ( empty( $value ) ) {
+			return 0;
+		}
+
+		if ( preg_match( '/^([\d.]+)\s*px$/i', $value, $matches ) ) {
+			return absint( round( (float) $matches[1] ) );
+		}
+
+		if ( preg_match( '/^([\d.]+)\s*r?em$/i', $value, $matches ) ) {
+			return absint( round( (float) $matches[1] * 16 ) );
+		}
+
+		// Unitless value, treat as px.
+		if ( is_numeric( $value ) ) {
+			return absint( round( (float) $value ) );
+		}
+
+		return 0;
+	}
+
+	/**
 	 * Sanitize settings
 	 *
 	 * @param array $input Raw input data.
@@ -163,6 +207,7 @@ class SIMPBLV_Settings {
 	 */
 	public static function render_breakpoints_section() {
 		$settings     = self::get_settings();
+		$layout_sizes = self::get_layout_sizes();
 		$mobile_max   = absint( $settings['mobile_breakpoint'] );
 		$tablet_max   = absint( $settings['tablet_breakpoint'] );
 		$laptop_max   = absint( $settings['laptop_breakpoint'] );
@@ -180,6 +225,22 @@ class SIMPBLV_Settings {
 		// translators: %d: minimum screen width in pixels for desktop devices.
 		echo '<li>' . esc_html( sprintf( __( 'Desktop: ≥ %dpx', 'simple-block-visibility' ), $desktop_min ) ) . '</li>';
 		echo '</ul>';
+
+		if ( $layout_sizes['content_size'] > 0 || $layout_sizes['wide_size'] > 0 ) {
+			echo '<p style="margin-top:1em;">' . esc_html__( 'FSE layout breakpoints (from theme.json):', 'simple-block-visibility' ) . '</p>';
+			echo '<ul class="sblv-breakpoints-list">';
+			if ( $layout_sizes['content_size'] > 0 ) {
+				// translators: %d: content width in pixels from theme.json.
+				echo '<li>' . esc_html( sprintf( __( 'Content width: ≤ %dpx', 'simple-block-visibility' ), $layout_sizes['content_size'] + 64 ) ) . '</li>';
+			}
+			if ( $layout_sizes['wide_size'] > 0 ) {
+				// translators: %d: wide width in pixels from theme.json.
+				echo '<li>' . esc_html( sprintf( __( 'Wide width: ≤ %dpx', 'simple-block-visibility' ), $layout_sizes['wide_size'] + 64 ) ) . '</li>';
+			}
+			echo '</ul>';
+		} else {
+			echo '<p style="margin-top:1em;"><em>' . esc_html__( 'No FSE layout sizes found in theme.json. Content width and wide width breakpoints are unavailable.', 'simple-block-visibility' ) . '</em></p>';
+		}
 	}
 
 	/**
@@ -234,15 +295,16 @@ class SIMPBLV_Settings {
 	 * @return string CSS string with media queries.
 	 */
 	public static function get_css() {
-		$settings    = self::get_settings();
-		$mobile_max  = absint( $settings['mobile_breakpoint'] );
-		$tablet_max  = absint( $settings['tablet_breakpoint'] );
-		$laptop_max  = absint( $settings['laptop_breakpoint'] );
-		$tablet_min  = $mobile_max + 1;
-		$laptop_min  = $tablet_max + 1;
-		$desktop_min = $laptop_max + 1;
+		$settings     = self::get_settings();
+		$layout_sizes = self::get_layout_sizes();
+		$mobile_max   = absint( $settings['mobile_breakpoint'] );
+		$tablet_max   = absint( $settings['tablet_breakpoint'] );
+		$laptop_max   = absint( $settings['laptop_breakpoint'] );
+		$tablet_min   = $mobile_max + 1;
+		$laptop_min   = $tablet_max + 1;
+		$desktop_min  = $laptop_max + 1;
 
-		return sprintf(
+		$css = sprintf(
 			'@media(max-width:%1$dpx){.sblv-hide-mobile{display:none!important}}' .
 			'@media(min-width:%2$dpx) and (max-width:%3$dpx){.sblv-hide-tablet{display:none!important}}' .
 			'@media(min-width:%4$dpx) and (max-width:%5$dpx){.sblv-hide-laptop{display:none!important}}' .
@@ -254,5 +316,21 @@ class SIMPBLV_Settings {
 			$laptop_max,
 			$desktop_min
 		);
+
+		if ( $layout_sizes['content_size'] > 0 ) {
+			$css .= sprintf(
+				'@media(max-width:%dpx){.sblv-hide-content-width{display:none!important}}',
+				$layout_sizes['content_size']
+			);
+		}
+
+		if ( $layout_sizes['wide_size'] > 0 ) {
+			$css .= sprintf(
+				'@media(max-width:%dpx){.sblv-hide-wide-width{display:none!important}}',
+				$layout_sizes['wide_size']
+			);
+		}
+
+		return $css;
 	}
 }

@@ -10,7 +10,7 @@ import '../scss/editor.scss';
 if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 	window.simpleBlockVisibilityFiltersAdded = true;
 
-	const settings = window.simpblvSettings || { mobileBreakpoint: 550, tabletBreakpoint: 768, laptopBreakpoint: 1440 };
+	const settings = window.simpblvSettings || { mobileBreakpoint: 550, tabletBreakpoint: 768, laptopBreakpoint: 1440, contentSize: 0, wideSize: 0 };
 
 	/**
 	 * Add visibility attributes
@@ -36,6 +36,14 @@ if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 					type: 'boolean',
 					default: false,
 				},
+				hideOnContentWidth: {
+					type: 'boolean',
+					default: false,
+				},
+				hideOnWideWidth: {
+					type: 'boolean',
+					default: false,
+				},
 			},
 		};
 	}
@@ -46,14 +54,16 @@ if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 	const withVisibilityControls = createHigherOrderComponent( ( BlockEdit ) => {
 		return ( props ) => {
 			const { attributes, setAttributes } = props;
-			const { hideOnMobile, hideOnTablet, hideOnLaptop, hideOnDesktop } = attributes;
+			const { hideOnMobile, hideOnTablet, hideOnLaptop, hideOnDesktop, hideOnContentWidth, hideOnWideWidth } = attributes;
 
-			const mobileMax  = parseInt(settings.mobileBreakpoint, 10) || 550;
-			const tabletMin  = mobileMax + 1;
-			const tabletMax  = parseInt(settings.tabletBreakpoint, 10) || 768;
-			const laptopMin  = tabletMax + 1;
-			const laptopMax  = parseInt(settings.laptopBreakpoint, 10) || 1440;
-			const desktopMin = laptopMax + 1;
+			const mobileMax   = parseInt(settings.mobileBreakpoint, 10) || 550;
+			const tabletMin   = mobileMax + 1;
+			const tabletMax   = parseInt(settings.tabletBreakpoint, 10) || 768;
+			const laptopMin   = tabletMax + 1;
+			const laptopMax   = parseInt(settings.laptopBreakpoint, 10) || 1440;
+			const desktopMin  = laptopMax + 1;
+			const contentSize = (parseInt(settings.contentSize, 10) + 64) || 0;
+			const wideSize    = (parseInt(settings.wideSize, 10) + 64) || 0;
 
 			return createElement(
 				Fragment,
@@ -88,6 +98,16 @@ if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 							checked: hideOnDesktop,
 							onChange: ( value ) => setAttributes( { hideOnDesktop: value } ),
 						} ),
+						contentSize > 0 && createElement( ToggleControl, {
+							label: __( 'Hide below content width', 'simple-block-visibility' ) + ` (≤ ${ contentSize }px)`,
+							checked: hideOnContentWidth,
+							onChange: ( value ) => setAttributes( { hideOnContentWidth: value } ),
+						} ),
+						wideSize > 0 && createElement( ToggleControl, {
+							label: __( 'Hide below wide width', 'simple-block-visibility' ) + ` (≤ ${ wideSize }px)`,
+							checked: hideOnWideWidth,
+							onChange: ( value ) => setAttributes( { hideOnWideWidth: value } ),
+						} ),
 					)
 				)
 			);
@@ -98,13 +118,15 @@ if ( ! window.simpleBlockVisibilityFiltersAdded ) {
 	 * Add visibility CSS classes to the block's saved HTML output
 	 */
 	function addVisibilityClasses( props, _blockType, attributes ) {
-		const { hideOnMobile, hideOnTablet, hideOnLaptop, hideOnDesktop } = attributes;
+		const { hideOnMobile, hideOnTablet, hideOnLaptop, hideOnDesktop, hideOnContentWidth, hideOnWideWidth } = attributes;
 
 		const classes = [];
-		if ( hideOnMobile )  classes.push( 'sblv-hide-mobile' );
-		if ( hideOnTablet )  classes.push( 'sblv-hide-tablet' );
-		if ( hideOnLaptop )  classes.push( 'sblv-hide-laptop' );
-		if ( hideOnDesktop ) classes.push( 'sblv-hide-desktop' );
+		if ( hideOnMobile )       classes.push( 'sblv-hide-mobile' );
+		if ( hideOnTablet )       classes.push( 'sblv-hide-tablet' );
+		if ( hideOnLaptop )       classes.push( 'sblv-hide-laptop' );
+		if ( hideOnDesktop )      classes.push( 'sblv-hide-desktop' );
+		if ( hideOnContentWidth ) classes.push( 'sblv-hide-content-width' );
+		if ( hideOnWideWidth )    classes.push( 'sblv-hide-wide-width' );
 
 		if ( classes.length === 0 ) {
 			return props;

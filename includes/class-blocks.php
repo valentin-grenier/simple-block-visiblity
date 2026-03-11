@@ -33,12 +33,14 @@ class SIMPBLV_Blocks {
 			return $block_content;
 		}
 
-		$hide_mobile  = ! empty( $block['attrs']['hideOnMobile'] );
-		$hide_tablet  = ! empty( $block['attrs']['hideOnTablet'] );
-		$hide_laptop  = ! empty( $block['attrs']['hideOnLaptop'] );
-		$hide_desktop = ! empty( $block['attrs']['hideOnDesktop'] );
+		$hide_mobile        = ! empty( $block['attrs']['hideOnMobile'] );
+		$hide_tablet        = ! empty( $block['attrs']['hideOnTablet'] );
+		$hide_laptop        = ! empty( $block['attrs']['hideOnLaptop'] );
+		$hide_desktop       = ! empty( $block['attrs']['hideOnDesktop'] );
+		$hide_content_width = ! empty( $block['attrs']['hideOnContentWidth'] );
+		$hide_wide_width    = ! empty( $block['attrs']['hideOnWideWidth'] );
 
-		if ( ! $hide_mobile && ! $hide_tablet && ! $hide_laptop && ! $hide_desktop ) {
+		if ( ! $hide_mobile && ! $hide_tablet && ! $hide_laptop && ! $hide_desktop && ! $hide_content_width && ! $hide_wide_width ) {
 			return $block_content;
 		}
 
@@ -58,6 +60,12 @@ class SIMPBLV_Blocks {
 		}
 		if ( $hide_desktop ) {
 			$classes[] = 'sblv-hide-desktop';
+		}
+		if ( $hide_content_width ) {
+			$classes[] = 'sblv-hide-content-width';
+		}
+		if ( $hide_wide_width ) {
+			$classes[] = 'sblv-hide-wide-width';
 		}
 
 		$class_string = implode( ' ', $classes );
